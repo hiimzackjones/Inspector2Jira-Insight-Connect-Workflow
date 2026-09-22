@@ -1,1035 +1,1075 @@
 {
-  "name": "AWS Inspector to Jira Ticket Sync",
-  "summary": "Syncs AWS Inspector findings (via Rapid7 Surface Command) to Jira tickets. For each finding: creates a ticket if none exists, adds a new ticket scoped to newly-affected hosts if the existing ticket's host list has grown, edits the existing ticket down and comments if hosts have been remediated, and closes tickets automatically if a finding disappears from the query entirely. No script steps - every transformation uses the jq plugin or native InsightConnect steps, so it can be modified without custom code.",
-  "tags": [],
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "ProjectID": {
-        "type": "string",
-        "default": "10000",
-        "description": "Your Jira project's numeric ID (find it in the project's URL or via the Jira API)"
-      },
-      "ProjectIDKey": {
-        "type": "string",
-        "default": "PROJ",
-        "description": "Your Jira project's key, used when creating new tickets"
-      },
-      "CompletedIssueStatus": {
-        "type": "string",
-        "default": "Done",
-        "description": "The Jira status name used to exclude closed tickets from searches and as the closing transition target"
-      }
-    },
-    "definitions": {}
+ "name": "AWS Inspector to Jira Ticket Sync",
+ "summary": "Syncs AWS Inspector findings (via Rapid7 Surface Command) to Jira tickets. For each finding: creates a ticket if none exists, adds a new ticket scoped to newly-affected hosts if the existing ticket's host list has grown, edits the existing ticket down and comments if hosts have been remediated, and closes tickets automatically if a finding disappears from the query entirely. No script steps - every transformation uses the jq plugin or native InsightConnect steps, so it can be modified without custom code.",
+ "tags": [],
+ "inputSchema": {
+  "type": "object",
+  "properties": {
+   "ProjectID": {
+    "type": "string",
+    "default": "10000",
+    "description": "Your Jira project's numeric ID (find it in the project's URL or via the Jira API)"
+   },
+   "ProjectIDKey": {
+    "type": "string",
+    "default": "PROJ",
+    "description": "Your Jira project's key, used when creating new tickets"
+   },
+   "CompletedIssueStatus": {
+    "type": "string",
+    "default": "Done",
+    "description": "The Jira status name used to exclude closed tickets from searches and as the closing transition target"
+   }
   },
-  "outputSchema": {
-    "type": "object",
-    "properties": {},
-    "definitions": {}
-  },
-  "outputValues": {},
-  "notes": "",
-  "steps": [
-    {
-      "nodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-      "name": "EachFinding",
-      "type": "loop",
-      "metadata": {
-        "parameters": {
-          "nextEdgeId": "c5a0f2c2-77cd-4d18-b48d-ea11af022221",
-          "innerEdgeId": "7929bd72-b467-42be-bda5-ff05340d4285",
-          "customOutput": [
-            {
-              "name": "findings",
-              "input": {
-                "value": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item]}}",
-                "valueType": null,
-                "expression": null
-              },
-              "outputType": "array"
-            },
-            {
-              "name": "find_issue_results",
-              "input": {
-                "value": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}",
-                "valueType": null,
-                "expression": null
-              },
-              "outputType": "array"
-            },
-            {
-              "name": "affected_hosts_query",
-              "input": {
-                "value": "{{[55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c].[content]}}",
-                "valueType": null,
-                "expression": null
-              },
-              "outputType": "array"
-            }
-          ],
-          "repeatVariable": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
-        },
-        "customOutputSchema": {
-          "type": "object",
-          "title": "Variables",
-          "properties": {
-            "findings": {
-              "type": "array",
-              "title": "findings",
-              "description": "Custom output: \"findings\""
-            },
-            "find_issue_results": {
-              "type": "array",
-              "title": "find_issue_results",
-              "description": "Custom output: \"find_issue_results\""
-            },
-            "affected_hosts_query": {
-              "type": "array",
-              "title": "affected_hosts_query",
-              "description": "Custom output: \"affected_hosts_query\""
-            }
-          }
-        }
+  "definitions": {}
+ },
+ "outputSchema": {
+  "type": "object",
+  "properties": {},
+  "definitions": {}
+ },
+ "outputValues": {},
+ "notes": "",
+ "steps": [
+  {
+   "nodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+   "name": "EachFinding",
+   "type": "loop",
+   "metadata": {
+    "parameters": {
+     "nextEdgeId": "c5a0f2c2-77cd-4d18-b48d-ea11af022221",
+     "innerEdgeId": "7929bd72-b467-42be-bda5-ff05340d4285",
+     "customOutput": [
+      {
+       "name": "findings",
+       "input": {
+        "value": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item]}}",
+        "valueType": null,
+        "expression": null
+       },
+       "outputType": "array"
+      },
+      {
+       "name": "find_issue_results",
+       "input": {
+        "value": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}",
+        "valueType": null,
+        "expression": null
+       },
+       "outputType": "array"
+      },
+      {
+       "name": "affected_hosts_query",
+       "input": {
+        "value": "{{[55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c].[content]}}",
+        "valueType": null,
+        "expression": null
+       },
+       "outputType": "array"
       }
+     ],
+     "repeatVariable": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
     },
-    {
-      "nodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
-      "name": "IssueExists",
-      "type": "automated_decision",
-      "metadata": {
-        "parameters": {
-          "defaultEdgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
-          "stepControlParams": [
-            {
-              "edgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
-              "expression": {},
-              "expressionText": ""
-            },
-            {
-              "edgeId": "d3df993a-901e-4ee0-8e55-5c4103a32f65",
-              "expression": {
-                "op": "=",
-                "left": {
-                  "name": "602e4024-aaef-4b66-81c3-bf1b2b50a020.issues",
-                  "type": "variable"
-                },
-                "type": "binary",
-                "right": {
-                  "type": "array",
-                  "elements": []
-                }
-              },
-              "expressionText": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}} = []"
-            }
-          ]
-        }
+    "customOutputSchema": {
+     "type": "object",
+     "title": "Variables",
+     "properties": {
+      "findings": {
+       "type": "array",
+       "title": "findings",
+       "description": "Custom output: \"findings\""
+      },
+      "find_issue_results": {
+       "type": "array",
+       "title": "find_issue_results",
+       "description": "Custom output: \"find_issue_results\""
+      },
+      "affected_hosts_query": {
+       "type": "array",
+       "title": "affected_hosts_query",
+       "description": "Custom output: \"affected_hosts_query\""
       }
-    },
-    {
-      "nodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
-      "name": "EachTicket",
-      "type": "artifact",
-      "metadata": {
-        "parameters": {
-          "type": "markdown",
-          "input": {
-            "content": "# Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\nFinding Title: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\nFinding Severity: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}}\nType: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[type]}}\nFix Available: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[fix_available]}}\nExploit Available: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[exploit_available]}}\n---\nAffected hosts: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}"
-          }
-        },
-        "isDisabled": false
-      }
-    },
-    {
-      "nodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
-      "name": "JQComparison",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "flags": [
-              "-c"
-            ],
-            "filter": "def hosts_of(x):\n  (x.description // \"\") as $d\n  | if ($d|type)==\"string\" and ($d|contains(\"[AFFECTED-HOSTS]\"))\n    then ($d | split(\"[AFFECTED-HOSTS]\")[1] | split(\"[/AFFECTED-HOSTS]\")[0] | gsub(\"\\\\\\\\n\"; \" \") | gsub(\"^\\\\s+|\\\\s+$\"; \"\") | split(\",\") | map(gsub(\"^\\\\s+|\\\\s+$\";\"\")))\n    else []\n    end;\ndef fmt_desc(h): \"[AFFECTED-HOSTS]\\n\" + (h | join(\", \")) + \"\\n[/AFFECTED-HOSTS]\";\n(.fromASM | split(\",\") | map(gsub(\"^\\\\s+|\\\\s+$\";\"\"))) as $asm\n| ([.issues[] | hosts_of(.)] | flatten) as $all_jira_hosts\n| ($asm - $all_jira_hosts) as $added\n| ($all_jira_hosts - $asm) as $removed\n| ([.issues[] |\n     hosts_of(.) as $ticket_hosts\n     | ($ticket_hosts - $asm) as $removed_here\n     | select(($removed_here | length) > 0)\n     | {\n         ticket_id: .key,\n         new_hosts: ($ticket_hosts - $removed_here),\n         removed_hosts: $removed_here,\n         new_description: fmt_desc($ticket_hosts - $removed_here),\n         removed_comment: (\"Removed from ticket due to likely remediation: \" + ($removed_here | join(\", \")))\n       }\n   ]) as $ticket_updates\n| {\n    added: $added,\n    added_count: ($added | length),\n    added_description: fmt_desc($added),\n    removed: $removed,\n    ticket_updates: $ticket_updates\n  }",
-            "json_in": {
-              "fromASM": "{{[55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c].[content]}}",
-              "issues": "{{[2d52777d-4cc8-4468-af9d-e49e97ff32e6].[enriched_issues]}}"
-            },
-            "timeout": 15
-          }
-        },
-        "identifier": "run_jq",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jq",
-          "vendor": "rapid7",
-          "version": "3.0.0"
-        },
-        "isCloud": true,
-        "connectionType": "ORCHESTRATOR"
-      }
-    },
-    {
-      "nodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
-      "name": "AffectedHostsList",
-      "type": "artifact",
-      "metadata": {
-        "parameters": {
-          "type": "markdown",
-          "input": {
-            "content": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}"
-          }
-        },
-        "isDisabled": false
-      }
-    },
-    {
-      "nodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
-      "name": "FindIssue",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}} AND summary ~ \"\\\"Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\\\"\"",
-            "max": 10,
-            "get_attachments": false
-          }
-        },
-        "identifier": "find_issues",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
-      "name": "SCQueryValidation",
-      "type": "automated_decision",
-      "metadata": {
-        "parameters": {
-          "defaultEdgeId": "48718903-b801-4416-8100-7a30bec74ddc",
-          "stepControlParams": [
-            {
-              "edgeId": "b2f25835-b81c-46d0-aa06-35f8df4c6eaf",
-              "expression": {
-                "op": "!=",
-                "left": {
-                  "name": "9f313df7-7cb5-4b07-919c-12a1a26aadd7.items",
-                  "type": "variable"
-                },
-                "type": "binary",
-                "right": {
-                  "type": "literal",
-                  "value": 0
-                }
-              },
-              "expressionText": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}} != 0"
-            },
-            {
-              "edgeId": "48718903-b801-4416-8100-7a30bec74ddc",
-              "expression": {},
-              "expressionText": ""
-            }
-          ]
-        }
-      }
-    },
-    {
-      "nodeId": "9f313df7-7cb5-4b07-919c-12a1a26aadd7",
-      "name": "ExposureCommandQuery",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "query_id": "REPLACE_WITH_YOUR_SURFACE_COMMAND_QUERY_ID"
-          }
-        },
-        "identifier": "run_query",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "rapid7_surface_command",
-          "vendor": "rapid7",
-          "version": "1.2.0"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_SURFACE_COMMAND_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
-      "name": "ExtractHostsFromExistingTicket",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "flags": [],
-            "filter": "def safe_hosts(x):\n  (x.description // \"\") as $d\n  | if ($d|type)==\"string\" and ($d|contains(\"[AFFECTED-HOSTS]\"))\n    then ($d | split(\"[AFFECTED-HOSTS]\")[1] | split(\"[/AFFECTED-HOSTS]\")[0] | gsub(\"\\\\\\\\n\"; \" \") | gsub(\"^\\\\s+|\\\\s+$\"; \"\"))\n    else empty\n    end;\n[.issues[] | safe_hosts(.)] | join(\", \")",
-            "json_in": {
-              "issues": "{{[2d52777d-4cc8-4468-af9d-e49e97ff32e6].[enriched_issues]}}"
-            },
-            "timeout": 15
-          }
-        },
-        "identifier": "run_jq",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jq",
-          "vendor": "rapid7",
-          "version": "3.0.0"
-        },
-        "isCloud": true,
-        "connectionType": "ORCHESTRATOR"
-      }
-    },
-    {
-      "nodeId": "c131c56f-f2c2-4751-a703-2d04168399d3",
-      "name": "OutputSample",
-      "type": "artifact",
-      "metadata": {
-        "parameters": {
-          "type": "markdown",
-          "input": {
-            "content": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
-          }
-        },
-        "isDisabled": false
-      }
-    },
-    {
-      "nodeId": "c8c26774-3167-4965-878a-1577bea71f32",
-      "name": "Artifact - 1",
-      "type": "artifact",
-      "metadata": {
-        "parameters": {
-          "type": "markdown",
-          "input": {
-            "content": "The result is empty"
-          }
-        },
-        "isDisabled": false
-      }
-    },
-    {
-      "nodeId": "f05cb246-262b-4317-a980-8b25671d9c10",
-      "name": "CreateNewIssue",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "type": "Task",
-            "fields": {
-              "labels": [
-                "aws-inspector-auto"
-              ]
-            },
-            "project": "{{[$input].[ProjectIDKey]}}",
-            "summary": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}} Severity Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}",
-            "description": "[AFFECTED-HOSTS]\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}\n[/AFFECTED-HOSTS]",
-            "attachment_bytes": "",
-            "attachment_filename": ""
-          }
-        },
-        "identifier": "create_issue",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0",
-      "name": "ParseAddedRemoved",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "input": "{{[29b8b841-8aa8-401c-a6be-14a9d2a61caf].[json_out]}}"
-          }
-        },
-        "identifier": "string_to_object",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "type_converter",
-          "vendor": "rapid7",
-          "version": "1.8.9"
-        },
-        "isCloud": true,
-        "connectionType": "ORCHESTRATOR"
-      }
-    },
-    {
-      "nodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-      "name": "EachTicketUpdate",
-      "type": "loop",
-      "metadata": {
-        "parameters": {
-          "nextEdgeId": "84f94198-130a-47cc-befc-65d6dada18ea",
-          "innerEdgeId": "8917a285-62fb-4fec-a654-3182863764d0",
-          "customOutput": [
-            {
-              "name": "ticket_update_details",
-              "input": {
-                "value": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item]}}",
-                "valueType": null,
-                "expression": null
-              },
-              "outputType": "array"
-            }
-          ],
-          "repeatVariable": "{{[7cdf4d37-c0ab-4287-898f-5453e29252f0].[output].[ticket_updates]}}"
-        },
-        "customOutputSchema": {
-          "type": "object",
-          "title": "Variables",
-          "properties": {
-            "ticket_update_details": {
-              "type": "array",
-              "title": "ticket_update_details",
-              "description": "Custom output: \"ticket_update_details\""
-            }
-          }
-        }
-      }
-    },
-    {
-      "nodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0",
-      "name": "UpdateTicketDescription",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "id": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[ticket_id]}}",
-            "description": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[new_description]}}",
-            "notify": true
-          }
-        },
-        "identifier": "edit_issue",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "214368fd-78b1-4844-878f-3eba01ae49c2",
-      "name": "AddRemovalComment",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "id": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[ticket_id]}}",
-            "comment": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[removed_comment]}}"
-          }
-        },
-        "identifier": "comment_issue",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1",
-      "name": "HasAddedHosts",
-      "type": "automated_decision",
-      "metadata": {
-        "parameters": {
-          "defaultEdgeId": "6159619c-ad65-4bc9-b425-563f49b098ea",
-          "stepControlParams": [
-            {
-              "edgeId": "1b636166-c28e-4759-93a6-6a51e30cc8ca",
-              "expression": {
-                "op": "!=",
-                "left": {
-                  "name": "7cdf4d37-c0ab-4287-898f-5453e29252f0.output.added_count",
-                  "type": "variable"
-                },
-                "type": "binary",
-                "right": {
-                  "type": "literal",
-                  "value": 0
-                }
-              },
-              "expressionText": "{{[7cdf4d37-c0ab-4287-898f-5453e29252f0].[output].[added_count]}} != 0"
-            },
-            {
-              "edgeId": "6159619c-ad65-4bc9-b425-563f49b098ea",
-              "expression": {},
-              "expressionText": ""
-            }
-          ]
-        }
-      }
-    },
-    {
-      "nodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca",
-      "name": "CreateAddedHostsTicket",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "type": "Task",
-            "fields": {
-              "labels": [
-                "aws-inspector-auto"
-              ]
-            },
-            "project": "{{[$input].[ProjectIDKey]}}",
-            "summary": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}} Severity Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}} (new hosts)",
-            "description": "{{[7cdf4d37-c0ab-4287-898f-5453e29252f0].[output].[added_description]}}",
-            "attachment_bytes": "",
-            "attachment_filename": ""
-          }
-        },
-        "identifier": "create_issue",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
-      "name": "EachMatchedIssue",
-      "type": "loop",
-      "metadata": {
-        "parameters": {
-          "nextEdgeId": "898698a7-889a-4f94-a278-b60f6a48e608",
-          "innerEdgeId": "d84f5d7e-a0ee-4bd8-939d-a2c85d94ac7d",
-          "customOutput": [
-            {
-              "name": "enriched_issues",
-              "input": {
-                "value": "{{[20ce8aa8-4c06-4bdb-81ee-3b1721272f93].[issue]}}",
-                "valueType": null,
-                "expression": null
-              },
-              "outputType": "array"
-            }
-          ],
-          "repeatVariable": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}"
-        },
-        "customOutputSchema": {
-          "type": "object",
-          "title": "Variables",
-          "properties": {
-            "enriched_issues": {
-              "type": "array",
-              "title": "enriched_issues",
-              "description": "Custom output: \"enriched_issues\""
-            }
-          }
-        }
-      }
-    },
-    {
-      "nodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93",
-      "name": "GetIssue",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "id": "{{[2d52777d-4cc8-4468-af9d-e49e97ff32e6].[$item].[id]}}",
-            "get_attachments": false
-          }
-        },
-        "identifier": "get_issue",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816",
-      "name": "FullRunDebugSummary",
-      "type": "artifact",
-      "metadata": {
-        "parameters": {
-          "type": "markdown",
-          "input": {
-            "content": "# Full Run Debug Summary\n\n## Findings\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[findings]}}\n```\n\n## FindIssue Results (per finding)\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[find_issue_results]}}\n```\n\n## Affected Hosts From Query (per finding)\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[affected_hosts_query]}}\n```\n\n---\nNote: extracted_existing_hosts, jq_comparisons, parsed_added_removed, matched_issues_enriched, created_added_tickets, and ticket_update_details are NOT included here - ICON errors when a Loop Output references a step that didn't run on a given iteration, and those steps only run on some branches. Grab those individually per-finding when needed.\n\n\n---\n\n## Reverse Sync: All Open Tickets Checked\n```\n{{[49e0d723-1a47-4e1e-8b04-1020eee1eee8].[issues]}}\n```\n\n## Stale Tickets Closed This Run\n```\n{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[stale_ticket_closures]}}\n```\n"
-          }
-        },
-        "isDisabled": false
-      }
-    },
-    {
-      "nodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8",
-      "name": "FindAllOpenTickets",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}}",
-            "max": 100,
-            "get_attachments": false
-          }
-        },
-        "identifier": "find_issues",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
-    },
-    {
-      "nodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a",
-      "name": "CheckStaleTickets",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "flags": [
-              "-c"
-            ],
-            "filter": "(.findings | map(.title)) as $titles\n| {\n    stale_tickets: [ .tickets[]\n      | (.summary // \"\") as $s\n      | select( ($titles | any(. as $t | $s | contains($t))) | not )\n    ]\n  }",
-            "json_in": {
-              "tickets": "{{[49e0d723-1a47-4e1e-8b04-1020eee1eee8].[issues]}}",
-              "findings": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
-            },
-            "timeout": 15
-          }
-        },
-        "identifier": "run_jq",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jq",
-          "vendor": "rapid7",
-          "version": "3.0.0"
-        },
-        "isCloud": true,
-        "connectionType": "ORCHESTRATOR"
-      }
-    },
-    {
-      "nodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca",
-      "name": "ParseStaleTickets",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "input": "{{[8f5bd6d7-7888-4d83-8c91-cc49df6d537a].[json_out]}}"
-          }
-        },
-        "identifier": "string_to_object",
-        "continueOnFailure": false,
-        "isDisabled": false,
-        "plugin": {
-          "name": "type_converter",
-          "vendor": "rapid7",
-          "version": "1.8.9"
-        },
-        "isCloud": true,
-        "connectionType": "ORCHESTRATOR"
-      }
-    },
-    {
-      "nodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
-      "name": "EachStaleTicket",
-      "type": "loop",
-      "metadata": {
-        "parameters": {
-          "nextEdgeId": "103f20e6-d835-4177-834f-9fa3364d9c8d",
-          "innerEdgeId": "aff8a67c-5775-4fdd-a3ac-ea2afa79be49",
-          "customOutput": [
-            {
-              "name": "stale_ticket_closures",
-              "input": {
-                "value": "{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[$item]}}",
-                "valueType": null,
-                "expression": null
-              },
-              "outputType": "array"
-            }
-          ],
-          "repeatVariable": "{{[3d7303ed-7408-40db-9bf8-bf27a1f291ca].[output].[stale_tickets]}}"
-        },
-        "customOutputSchema": {
-          "type": "object",
-          "title": "Variables",
-          "properties": {
-            "stale_ticket_closures": {
-              "type": "array",
-              "title": "stale_ticket_closures",
-              "description": "Custom output: \"stale_ticket_closures\""
-            }
-          }
-        }
-      }
-    },
-    {
-      "nodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7",
-      "name": "TransitionStaleTicket",
-      "description": "",
-      "type": "action",
-      "metadata": {
-        "parameters": {
-          "input": {
-            "id": "{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[$item].[key]}}",
-            "transition": "{{[$input].[CompletedIssueStatus]}}",
-            "comment": "Closed automatically - this finding no longer appears in the latest Surface Command scan."
-          }
-        },
-        "identifier": "transition_issue",
-        "continueOnFailure": true,
-        "isDisabled": false,
-        "plugin": {
-          "name": "jira",
-          "vendor": "rapid7",
-          "version": "6.7.1"
-        },
-        "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
-        "isCloud": true,
-        "connectionType": "CONNECTION"
-      }
+     }
     }
-  ],
-  "graph": {
-    "nodes": [
+   }
+  },
+  {
+   "nodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
+   "name": "IssueExists",
+   "type": "automated_decision",
+   "metadata": {
+    "parameters": {
+     "defaultEdgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
+     "stepControlParams": [
       {
-        "nodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+       "edgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
+       "expression": {},
+       "expressionText": ""
       },
       {
-        "nodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922"
-      },
-      {
-        "nodeId": "9f313df7-7cb5-4b07-919c-12a1a26aadd7"
-      },
-      {
-        "nodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "c131c56f-f2c2-4751-a703-2d04168399d3"
-      },
-      {
-        "nodeId": "c8c26774-3167-4965-878a-1577bea71f32"
-      },
-      {
-        "nodeId": "f05cb246-262b-4317-a980-8b25671d9c10",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0",
-        "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681"
-      },
-      {
-        "nodeId": "214368fd-78b1-4844-878f-3eba01ae49c2",
-        "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681"
-      },
-      {
-        "nodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "nodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93",
-        "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6"
-      },
-      {
-        "nodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
-      },
-      {
-        "nodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8"
-      },
-      {
-        "nodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a"
-      },
-      {
-        "nodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca"
-      },
-      {
-        "nodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0"
-      },
-      {
-        "nodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7",
-        "parentNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0"
+       "edgeId": "d3df993a-901e-4ee0-8e55-5c4103a32f65",
+       "expression": {
+        "op": "=",
+        "left": {
+         "name": "602e4024-aaef-4b66-81c3-bf1b2b50a020.issues",
+         "type": "variable"
+        },
+        "type": "binary",
+        "right": {
+         "type": "array",
+         "elements": []
+        }
+       },
+       "expressionText": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}} = []"
       }
-    ],
-    "edges": [
+     ]
+    }
+   }
+  },
+  {
+   "nodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
+   "name": "EachTicket",
+   "type": "artifact",
+   "metadata": {
+    "parameters": {
+     "type": "markdown",
+     "input": {
+      "content": "# Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\nFinding Title: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\nFinding Severity: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}}\nType: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[type]}}\nFix Available: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[fix_available]}}\nExploit Available: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[exploit_available]}}\n---\nAffected hosts: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}"
+     }
+    },
+    "isDisabled": false
+   }
+  },
+  {
+   "nodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
+   "name": "JQComparison",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "flags": [
+       "-c"
+      ],
+      "filter": "# Reconcile \u2014 drop-in replacement for JQComparison's filter.\n# Input:  { issues: <matched tickets w/ .key & .description>, fromASM: <finding affected_hosts raw string> }\n# Output (SAME field names as original JQComparison, so no downstream rewiring):\n#   { added, added_count, added_description, removed,\n#     ticket_updates: [ {ticket_id, new_hosts, removed_hosts, new_description, removed_comment} ] }\n# Keys on \"host (ip)\" ONLY \u2014 tag changes never trigger false remediation.\ndef totag($t): ($t|index(\"/\")) as $i | if $i==null then {key:$t,value:\"\"} else {key:$t[0:$i],value:$t[$i+1:]} end;\ndef tagval($tags;$k): ($tags|map(select(.key==$k))|.[0].value|select(.!=null)) // \"(untagged)\";\ndef query_map($fromASM):\n  ($fromASM // \"\" | split(\" ::HOST:: \"))\n  | reduce .[] as $t ([];\n      if ($t|test(\"::TAGS::\"))\n      then ($t|split(\" ::TAGS::\")) as $p\n           | . + [ {key:($p[0]|gsub(\"^\\\\s+|\\\\s+$\";\"\")),\n                    tags:(($p[1]//\"\")|gsub(\"^\\\\s+|\\\\s+$\";\"\")|if .==\"\" then [] else [.] end)} ]\n      else (.[:-1]) + [ (.[-1]|.tags += [ ($t|gsub(\"^\\\\s+|\\\\s+$\";\"\")) ]) ] end )\n  | map({key:.key, tags:(.tags|map(select(length>0)|totag(.)))});\ndef ticket_lines($desc):\n  ($desc // \"\")\n  | if test(\"\\\\[AFFECTED-HOSTS\\\\]\")\n    then (split(\"[AFFECTED-HOSTS]\")[1] | split(\"[/AFFECTED-HOSTS]\")[0])\n         | gsub(\"\\\\\\\\n\";\" \")\n         | split(\"  ;  \") | map(gsub(\"^\\\\s+|\\\\s+$\";\"\")) | map(select(length>0))\n    else [] end;\ndef line_key($line): $line | split(\" \u2014 \")[0] | gsub(\"^\\\\s+|\\\\s+$\";\"\");\ndef line_owner($line): ($line | capture(\"Owner: (?<o>[^,]+)\").o) // \"unknown\";\ndef splice($desc; $newlines):\n  ($desc | split(\"[AFFECTED-HOSTS]\")[0]) as $pre\n  | ($desc | split(\"[/AFFECTED-HOSTS]\")[1] // \"\") as $post\n  | $pre + \"[AFFECTED-HOSTS] \" + ($newlines | join(\"  ;  \")) + \" [/AFFECTED-HOSTS]\" + $post;\n\n(query_map(.fromASM)) as $q\n| ([$q[].key]) as $qkeys\n| ([.issues[] | ticket_lines(.description) | .[] | line_key(.)]) as $all_ticket_keys\n| ($qkeys - $all_ticket_keys) as $added_keys\n| ($all_ticket_keys - $qkeys) as $removed_global\n| ([ $q[] | select(.key as $k | ($added_keys|index($k)))\n     | .key + \" \u2014 Owner: \" + tagval(.tags;\"Owner\")\n            + \", Repo: \" + tagval(.tags;\"Repo\")\n            + \", Env: \" + tagval(.tags;\"Environment\") ]) as $added_lines\n| {\n    added: $added_keys,\n    added_count: ($added_keys|length),\n    added_description: (\"[AFFECTED-HOSTS] \" + ($added_lines|join(\"  ;  \")) + \" [/AFFECTED-HOSTS]\"),\n    removed: $removed_global,\n    ticket_updates: [ .issues[] | . as $iss\n        | (ticket_lines($iss.description)) as $lines\n        | ($lines | map(select(line_key(.) as $k | ($qkeys|index($k)))))     as $survivors\n        | ($lines | map(select(line_key(.) as $k | ($qkeys|index($k))|not))) as $removed_lines\n        | select(($removed_lines|length) > 0)\n        | { ticket_id: $iss.key,\n            new_hosts: ($survivors | map(line_key(.))),\n            removed_hosts: ($removed_lines | map(line_key(.))),\n            new_description: splice($iss.description; $survivors),\n            removed_comment: (\"Remediation update \u2014 the following host(s) no longer appear in the latest AWS Inspector scan and have been removed from this ticket:\\n\\n\"\n              + ($removed_lines | map(\" \u2022 \" + line_key(.) + \" \u2014 Owner: \" + line_owner(.)) | join(\"\\n\"))\n              + \"\\n\\n\" + (($removed_lines|length)|tostring) + \" host(s) removed \u00b7 \"\n              + (($survivors|length)|tostring) + \" still affected.\") }\n      ]\n  }\n",
+      "json_in": {
+       "fromASM": "{{[55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c].[content]}}",
+       "issues": "{{[2d52777d-4cc8-4468-af9d-e49e97ff32e6].[enriched_issues]}}"
+      },
+      "timeout": 15
+     }
+    },
+    "identifier": "run_jq",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jq",
+     "vendor": "rapid7",
+     "version": "3.0.0"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
+  },
+  {
+   "nodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
+   "name": "AffectedHostsList",
+   "type": "artifact",
+   "metadata": {
+    "parameters": {
+     "type": "markdown",
+     "input": {
+      "content": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}"
+     }
+    },
+    "isDisabled": false
+   }
+  },
+  {
+   "nodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
+   "name": "FindIssue",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}} AND summary ~ \"\\\"Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\\\"\"",
+      "max": 10,
+      "get_attachments": false
+     }
+    },
+    "identifier": "find_issues",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
+   "name": "SCQueryValidation",
+   "type": "automated_decision",
+   "metadata": {
+    "parameters": {
+     "defaultEdgeId": "48718903-b801-4416-8100-7a30bec74ddc",
+     "stepControlParams": [
       {
-        "edgeId": "48718903-b801-4416-8100-7a30bec74ddc",
-        "name": "Not Valid",
-        "fromNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
-        "toNodeId": "c8c26774-3167-4965-878a-1577bea71f32"
+       "edgeId": "b2f25835-b81c-46d0-aa06-35f8df4c6eaf",
+       "expression": {
+        "op": "!=",
+        "left": {
+         "name": "9f313df7-7cb5-4b07-919c-12a1a26aadd7.items",
+         "type": "variable"
+        },
+        "type": "binary",
+        "right": {
+         "type": "literal",
+         "value": 0
+        }
+       },
+       "expressionText": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}} != 0"
       },
       {
-        "edgeId": "54315a2a-6073-4c50-a6fc-ec8bf8b8f88b",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
-        "toNodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c"
-      },
-      {
-        "edgeId": "5fd455e5-7ad5-4b7c-b807-a068d24122fe",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
-        "toNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020"
-      },
-      {
-        "edgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
-        "name": "IssueFound",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
-        "toNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6"
-      },
-      {
-        "edgeId": "66985d02-0c99-4a88-83a9-a51b557fb82b",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
-        "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f"
-      },
-      {
-        "edgeId": "7929bd72-b467-42be-bda5-ff05340d4285",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "toNodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0"
-      },
-      {
-        "edgeId": "8c095db4-51cf-4da5-b8e2-68b6568853c0",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "f05cb246-262b-4317-a980-8b25671d9c10"
-      },
-      {
-        "edgeId": "91d13ac6-d9e0-45eb-8d19-f3307c2e6f81",
-        "fromNodeId": "c8c26774-3167-4965-878a-1577bea71f32"
-      },
-      {
-        "edgeId": "9947b0a4-2852-43cd-afba-e7656e95f4a1",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
-        "toNodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0"
-      },
-      {
-        "edgeId": "a5bfc77c-d22d-49e4-af23-7070cc66b4f8",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
-        "toNodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf"
-      },
-      {
-        "edgeId": "b2f25835-b81c-46d0-aa06-35f8df4c6eaf",
-        "name": "Valid",
-        "fromNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
-        "toNodeId": "c131c56f-f2c2-4751-a703-2d04168399d3"
-      },
-      {
-        "edgeId": "b69996c9-6e47-4047-8f37-2281273d13a0",
-        "fromNodeId": "9f313df7-7cb5-4b07-919c-12a1a26aadd7",
-        "toNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922"
-      },
-      {
-        "edgeId": "c5a0f2c2-77cd-4d18-b48d-ea11af022221",
-        "fromNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "toNodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8"
-      },
-      {
-        "edgeId": "d3df993a-901e-4ee0-8e55-5c4103a32f65",
-        "name": "IssueNotFound",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
-        "toNodeId": "f05cb246-262b-4317-a980-8b25671d9c10"
-      },
-      {
-        "edgeId": "f7994916-346f-48a7-a8b4-1e7be5ae475d",
-        "fromNodeId": "c131c56f-f2c2-4751-a703-2d04168399d3",
-        "toNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-      },
-      {
-        "edgeId": "8311045b-6ade-457c-a8d7-a16af0511008",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0",
-        "toNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681"
-      },
-      {
-        "edgeId": "8917a285-62fb-4fec-a654-3182863764d0",
-        "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-        "fromNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-        "toNodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0"
-      },
-      {
-        "edgeId": "3a36b0f7-be29-4e8b-92e7-89d63215b25b",
-        "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-        "fromNodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0",
-        "toNodeId": "214368fd-78b1-4844-878f-3eba01ae49c2"
-      },
-      {
-        "edgeId": "c9c3115a-e600-4852-bb08-0c06b490570d",
-        "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-        "fromNodeId": "214368fd-78b1-4844-878f-3eba01ae49c2"
-      },
-      {
-        "edgeId": "6159619c-ad65-4bc9-b425-563f49b098ea",
-        "name": "NoAddedHosts",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1"
-      },
-      {
-        "edgeId": "1b636166-c28e-4759-93a6-6a51e30cc8ca",
-        "name": "HasAddedHosts",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1",
-        "toNodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca"
-      },
-      {
-        "edgeId": "3fa0dbc0-23a4-4e50-8484-b9787c0a49d0",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca"
-      },
-      {
-        "edgeId": "84f94198-130a-47cc-befc-65d6dada18ea",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
-        "toNodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1"
-      },
-      {
-        "edgeId": "d84f5d7e-a0ee-4bd8-939d-a2c85d94ac7d",
-        "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
-        "fromNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
-        "toNodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93"
-      },
-      {
-        "edgeId": "5fe0ae67-5fe3-47c7-94d0-38cad2f0589f",
-        "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
-        "fromNodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93"
-      },
-      {
-        "edgeId": "898698a7-889a-4f94-a278-b60f6a48e608",
-        "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-        "fromNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
-        "toNodeId": "b3e76992-72c0-4baa-b14e-5479d377f284"
-      },
-      {
-        "edgeId": "b82d5810-c693-4d99-bf83-e48d9efbbbc4",
-        "fromNodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
-      },
-      {
-        "edgeId": "dc9e197c-5f9f-42d4-bd81-50421d68d838",
-        "fromNodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8",
-        "toNodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a"
-      },
-      {
-        "edgeId": "2ff12584-0cb3-4f2a-8003-c5dff36b9043",
-        "fromNodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a",
-        "toNodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca"
-      },
-      {
-        "edgeId": "6201883b-7f29-4987-a16b-fe93610c9380",
-        "fromNodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca",
-        "toNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0"
-      },
-      {
-        "edgeId": "aff8a67c-5775-4fdd-a3ac-ea2afa79be49",
-        "parentNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
-        "fromNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
-        "toNodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7"
-      },
-      {
-        "edgeId": "e99a35de-3f2c-4128-b13d-a2dc979c2a49",
-        "parentNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
-        "fromNodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7"
-      },
-      {
-        "edgeId": "103f20e6-d835-4177-834f-9fa3364d9c8d",
-        "fromNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
-        "toNodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
+       "edgeId": "48718903-b801-4416-8100-7a30bec74ddc",
+       "expression": {},
+       "expressionText": ""
       }
-    ]
+     ]
+    }
+   }
+  },
+  {
+   "nodeId": "9f313df7-7cb5-4b07-919c-12a1a26aadd7",
+   "name": "ExposureCommandQuery",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "query_id": "REPLACE_WITH_YOUR_SURFACE_COMMAND_QUERY_ID"
+     }
+    },
+    "identifier": "run_query",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "rapid7_surface_command",
+     "vendor": "rapid7",
+     "version": "1.2.0"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_SURFACE_COMMAND_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
+   "name": "ExtractHostsFromExistingTicket",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "flags": [],
+      "filter": "def safe_hosts(x):\n  (x.description // \"\") as $d\n  | if ($d|type)==\"string\" and ($d|contains(\"[AFFECTED-HOSTS]\"))\n    then ($d | split(\"[AFFECTED-HOSTS]\")[1] | split(\"[/AFFECTED-HOSTS]\")[0] | gsub(\"\\\\\\\\n\"; \" \") | gsub(\"^\\\\s+|\\\\s+$\"; \"\"))\n    else empty\n    end;\n[.issues[] | safe_hosts(.)] | join(\", \")",
+      "json_in": {
+       "issues": "{{[2d52777d-4cc8-4468-af9d-e49e97ff32e6].[enriched_issues]}}"
+      },
+      "timeout": 15
+     }
+    },
+    "identifier": "run_jq",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jq",
+     "vendor": "rapid7",
+     "version": "3.0.0"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
+  },
+  {
+   "nodeId": "c131c56f-f2c2-4751-a703-2d04168399d3",
+   "name": "OutputSample",
+   "type": "artifact",
+   "metadata": {
+    "parameters": {
+     "type": "markdown",
+     "input": {
+      "content": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
+     }
+    },
+    "isDisabled": false
+   }
+  },
+  {
+   "nodeId": "c8c26774-3167-4965-878a-1577bea71f32",
+   "name": "Artifact - 1",
+   "type": "artifact",
+   "metadata": {
+    "parameters": {
+     "type": "markdown",
+     "input": {
+      "content": "The result is empty"
+     }
+    },
+    "isDisabled": false
+   }
+  },
+  {
+   "nodeId": "f05cb246-262b-4317-a980-8b25671d9c10",
+   "name": "CreateNewIssue",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "type": "Task",
+      "fields": {
+       "labels": [
+        "aws-inspector-auto"
+       ]
+      },
+      "project": "{{[$input].[ProjectIDKey]}}",
+      "summary": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}} Severity Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}",
+      "description": "{{[e2533a1c-b6e6-406b-af53-1362d5bce5ff].[json_out]}}",
+      "attachment_bytes": "",
+      "attachment_filename": ""
+     }
+    },
+    "identifier": "create_issue",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0",
+   "name": "ParseAddedRemoved",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "input": "{{[29b8b841-8aa8-401c-a6be-14a9d2a61caf].[json_out]}}"
+     }
+    },
+    "identifier": "string_to_object",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "type_converter",
+     "vendor": "rapid7",
+     "version": "1.8.9"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
+  },
+  {
+   "nodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+   "name": "EachTicketUpdate",
+   "type": "loop",
+   "metadata": {
+    "parameters": {
+     "nextEdgeId": "84f94198-130a-47cc-befc-65d6dada18ea",
+     "innerEdgeId": "8917a285-62fb-4fec-a654-3182863764d0",
+     "customOutput": [
+      {
+       "name": "ticket_update_details",
+       "input": {
+        "value": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item]}}",
+        "valueType": null,
+        "expression": null
+       },
+       "outputType": "array"
+      }
+     ],
+     "repeatVariable": "{{[7cdf4d37-c0ab-4287-898f-5453e29252f0].[output].[ticket_updates]}}"
+    },
+    "customOutputSchema": {
+     "type": "object",
+     "title": "Variables",
+     "properties": {
+      "ticket_update_details": {
+       "type": "array",
+       "title": "ticket_update_details",
+       "description": "Custom output: \"ticket_update_details\""
+      }
+     }
+    }
+   }
+  },
+  {
+   "nodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0",
+   "name": "UpdateTicketDescription",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "id": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[ticket_id]}}",
+      "description": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[new_description]}}",
+      "notify": true
+     }
+    },
+    "identifier": "edit_issue",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "214368fd-78b1-4844-878f-3eba01ae49c2",
+   "name": "AddRemovalComment",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "id": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[ticket_id]}}",
+      "comment": "{{[9e4c4175-bee9-4f26-9920-9f6b462db681].[$item].[removed_comment]}}"
+     }
+    },
+    "identifier": "comment_issue",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1",
+   "name": "HasAddedHosts",
+   "type": "automated_decision",
+   "metadata": {
+    "parameters": {
+     "defaultEdgeId": "6159619c-ad65-4bc9-b425-563f49b098ea",
+     "stepControlParams": [
+      {
+       "edgeId": "1b636166-c28e-4759-93a6-6a51e30cc8ca",
+       "expression": {
+        "op": "!=",
+        "left": {
+         "name": "7cdf4d37-c0ab-4287-898f-5453e29252f0.output.added_count",
+         "type": "variable"
+        },
+        "type": "binary",
+        "right": {
+         "type": "literal",
+         "value": 0
+        }
+       },
+       "expressionText": "{{[7cdf4d37-c0ab-4287-898f-5453e29252f0].[output].[added_count]}} != 0"
+      },
+      {
+       "edgeId": "6159619c-ad65-4bc9-b425-563f49b098ea",
+       "expression": {},
+       "expressionText": ""
+      }
+     ]
+    }
+   }
+  },
+  {
+   "nodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca",
+   "name": "CreateAddedHostsTicket",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "type": "Task",
+      "fields": {
+       "labels": [
+        "aws-inspector-auto"
+       ]
+      },
+      "project": "{{[$input].[ProjectIDKey]}}",
+      "summary": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}} Severity Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}} (new hosts)",
+      "description": "{{[7cdf4d37-c0ab-4287-898f-5453e29252f0].[output].[added_description]}}",
+      "attachment_bytes": "",
+      "attachment_filename": ""
+     }
+    },
+    "identifier": "create_issue",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
+   "name": "EachMatchedIssue",
+   "type": "loop",
+   "metadata": {
+    "parameters": {
+     "nextEdgeId": "898698a7-889a-4f94-a278-b60f6a48e608",
+     "innerEdgeId": "d84f5d7e-a0ee-4bd8-939d-a2c85d94ac7d",
+     "customOutput": [
+      {
+       "name": "enriched_issues",
+       "input": {
+        "value": "{{[20ce8aa8-4c06-4bdb-81ee-3b1721272f93].[issue]}}",
+        "valueType": null,
+        "expression": null
+       },
+       "outputType": "array"
+      }
+     ],
+     "repeatVariable": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}"
+    },
+    "customOutputSchema": {
+     "type": "object",
+     "title": "Variables",
+     "properties": {
+      "enriched_issues": {
+       "type": "array",
+       "title": "enriched_issues",
+       "description": "Custom output: \"enriched_issues\""
+      }
+     }
+    }
+   }
+  },
+  {
+   "nodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93",
+   "name": "GetIssue",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "id": "{{[2d52777d-4cc8-4468-af9d-e49e97ff32e6].[$item].[id]}}",
+      "get_attachments": false
+     }
+    },
+    "identifier": "get_issue",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816",
+   "name": "FullRunDebugSummary",
+   "type": "artifact",
+   "metadata": {
+    "parameters": {
+     "type": "markdown",
+     "input": {
+      "content": "# Full Run Debug Summary\n\n## Findings\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[findings]}}\n```\n\n## FindIssue Results (per finding)\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[find_issue_results]}}\n```\n\n## Affected Hosts From Query (per finding)\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[affected_hosts_query]}}\n```\n\n---\nNote: extracted_existing_hosts, jq_comparisons, parsed_added_removed, matched_issues_enriched, created_added_tickets, and ticket_update_details are NOT included here - ICON errors when a Loop Output references a step that didn't run on a given iteration, and those steps only run on some branches. Grab those individually per-finding when needed.\n\n\n---\n\n## Reverse Sync: All Open Tickets Checked\n```\n{{[49e0d723-1a47-4e1e-8b04-1020eee1eee8].[issues]}}\n```\n\n## Stale Tickets Closed This Run\n```\n{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[stale_ticket_closures]}}\n```\n"
+     }
+    },
+    "isDisabled": false
+   }
+  },
+  {
+   "nodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8",
+   "name": "FindAllOpenTickets",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}}",
+      "max": 100,
+      "get_attachments": false
+     }
+    },
+    "identifier": "find_issues",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a",
+   "name": "CheckStaleTickets",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "flags": [
+       "-c"
+      ],
+      "filter": "(.findings | map(.title)) as $titles\n| {\n    stale_tickets: [ .tickets[]\n      | (.summary // \"\") as $s\n      | select( ($titles | any(. as $t | $s | contains($t))) | not )\n    ]\n  }",
+      "json_in": {
+       "tickets": "{{[49e0d723-1a47-4e1e-8b04-1020eee1eee8].[issues]}}",
+       "findings": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
+      },
+      "timeout": 15
+     }
+    },
+    "identifier": "run_jq",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jq",
+     "vendor": "rapid7",
+     "version": "3.0.0"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
+  },
+  {
+   "nodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca",
+   "name": "ParseStaleTickets",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "input": "{{[8f5bd6d7-7888-4d83-8c91-cc49df6d537a].[json_out]}}"
+     }
+    },
+    "identifier": "string_to_object",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "type_converter",
+     "vendor": "rapid7",
+     "version": "1.8.9"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
+  },
+  {
+   "nodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
+   "name": "EachStaleTicket",
+   "type": "loop",
+   "metadata": {
+    "parameters": {
+     "nextEdgeId": "103f20e6-d835-4177-834f-9fa3364d9c8d",
+     "innerEdgeId": "aff8a67c-5775-4fdd-a3ac-ea2afa79be49",
+     "customOutput": [
+      {
+       "name": "stale_ticket_closures",
+       "input": {
+        "value": "{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[$item]}}",
+        "valueType": null,
+        "expression": null
+       },
+       "outputType": "array"
+      }
+     ],
+     "repeatVariable": "{{[3d7303ed-7408-40db-9bf8-bf27a1f291ca].[output].[stale_tickets]}}"
+    },
+    "customOutputSchema": {
+     "type": "object",
+     "title": "Variables",
+     "properties": {
+      "stale_ticket_closures": {
+       "type": "array",
+       "title": "stale_ticket_closures",
+       "description": "Custom output: \"stale_ticket_closures\""
+      }
+     }
+    }
+   }
+  },
+  {
+   "nodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7",
+   "name": "TransitionStaleTicket",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "id": "{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[$item].[key]}}",
+      "transition": "{{[$input].[CompletedIssueStatus]}}",
+      "comment": "Closed automatically - this finding no longer appears in the latest Surface Command scan."
+     }
+    },
+    "identifier": "transition_issue",
+    "continueOnFailure": true,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jira",
+     "vendor": "rapid7",
+     "version": "6.7.1"
+    },
+    "connectionId": "REPLACE_WITH_YOUR_JIRA_CONNECTION_ID",
+    "isCloud": true,
+    "connectionType": "CONNECTION"
+   }
+  },
+  {
+   "nodeId": "e2533a1c-b6e6-406b-af53-1362d5bce5ff",
+   "name": "BuildTicketBody",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "flags": [
+       "-r"
+      ],
+      "filter": "# BuildTicketBody \u2014 runs once per finding in the EachFinding loop.\n# Input (json_in): the single finding object from ExposureCommandQuery items[].\n# Output (json_out): { \"summary\": <string>, \"description\": <string> }\ndef clean($s): ($s // \"\") | gsub(\"[\\r\\n]+\"; \" \") | gsub(\"  +\"; \" \") | gsub(\"^\\\\s+|\\\\s+$\"; \"\");\ndef dateonly($s): ($s // \"\") | .[0:10];\ndef member($arn): ([$arn // \"\" | scan(\"[0-9]{12}\")] | last) // \"unknown\";\ndef totag($t): ($t|index(\"/\")) as $i\n  | if $i==null then {key:$t,value:\"\"} else {key:$t[0:$i], value:$t[$i+1:]} end;\ndef tagval($tags;$k): ($tags | map(select(.key==$k)) | .[0].value | select(.!=null)) // \"(untagged)\";\ndef cwe_clean($s): ($s // \"\") | [splits(\", *\")] | map(select(test(\"noinfo\")|not)) | join(\", \")\n  | if .==\"\" then \"n/a\" else . end;\ndef clean_cve($t): ($t // \"\") | split(\" - \")[0];\n\n# split raw affected_hosts (::HOST:: separated) into [{hostip, tags:[{key,value}]}].\n# \" ::TAGS:: \" marks each host boundary; every other token is one tag (also ::HOST::-separated).\ndef parse_hosts($s):\n  ($s // \"\" | split(\" ::HOST:: \"))\n  | reduce .[] as $t ([];\n      if ($t | test(\"::TAGS::\"))\n      then ($t | split(\" ::TAGS::\")) as $p\n           | . + [ { hostip: ($p[0]|gsub(\"^\\\\s+|\\\\s+$\";\"\")),\n                     tags: (($p[1]//\"\")|gsub(\"^\\\\s+|\\\\s+$\";\"\")|if .==\"\" then [] else [.] end) } ]\n      else (.[:-1]) + [ (.[-1] | .tags += [ ($t | gsub(\"^\\\\s+|\\\\s+$\";\"\")) ]) ] end )\n  | map( {hostip: .hostip, tags: (.tags | map(select(length>0) | totag(.)))} );\n\n.finding\n| (clean_cve(.title)) as $cve\n| (parse_hosts(.affected_hosts)) as $hosts\n| ([ $hosts[] | .hostip + \" \u2014 Owner: \" + tagval(.tags;\"Owner\")\n                       + \", Repo: \"  + tagval(.tags;\"Repo\")\n                       + \", Env: \"   + tagval(.tags;\"Environment\") ] | join(\"  ;  \")) as $host_block\n| ((.accounts_raw // \"\") | split(\" | \")\n    | map( (split(\" ::ARN:: \")) as $p | $p[0] + \" (\" + member($p[1]) + \")\" ) | join(\", \")) as $accts\n| (if (.kev_exploited // \"\") == \"true\" then true else false end) as $kev\n| (((.epss // \"0\")|tonumber)*100|floor) as $epss_pct\n| (((.epss_percentile // \"0\")|tonumber)*100|floor) as $epss_rank\n| {\n    summary: ((if $kev then \"[KEV] \" else \"\" end)\n              + (.severity // \"\") + \" \u00b7 CVSS \" + (.cvss3_score // \"n/a\")\n              + \" \u00b7 Remediation needed for: \" + (.title // \"\")),\n    description: (\n        (if $kev then \"[KEV \u2014 ACTIVELY EXPLOITED IN THE WILD] \" + clean(.kev_action) + \"\\n\\n\" else \"\" end)\n      + \"-- RISK --\\n\"\n      + \"Severity: \" + (.severity // \"n/a\")\n        + \"  |  CVSS v3: \" + (.cvss3_score // \"n/a\") + \" (\" + (.cvss3_severity // \"n/a\") + \")\"\n        + \"  |  EPSS: \" + ($epss_pct|tostring) + \"% (\" + ($epss_rank|tostring) + \"th pct)\\n\"\n      + \"Exploit Available: \" + (.exploit_available // \"n/a\")\n        + \"  |  Fix Available: \" + (.fix_available // \"n/a\") + \"\\n\"\n      + \"Weakness: \" + cwe_clean(.cwe) + \"  |  Attack Vector: \" + (.attack_vector // \"n/a\") + \"\\n\\n\"\n      + \"-- DESCRIPTION --\\n\"\n      + clean(.cve_description) + \"\\n\"\n      + \"Reference: https://nvd.nist.gov/vuln/detail/\" + $cve + \"\\n\\n\"\n      + \"-- ENVIRONMENT --\\n\"\n      + \"AWS Account(s): \" + $accts + \"  |  OS: \" + (.os // \"n/a\") + \"  |  Region: \" + (.regions // \"n/a\") + \"\\n\"\n      + \"First Observed: \" + dateonly(.first_observed)\n        + \"  |  Last Seen: \" + dateonly(.last_seen)\n        + \"  |  CVE Published: \" + dateonly(.cve_published) + \"\\n\\n\"\n      + \"-- AFFECTED HOSTS --\\n\"\n      + \"[AFFECTED-HOSTS] \" + $host_block + \" [/AFFECTED-HOSTS]\"\n    )\n  }\n| .description\n",
+      "json_in": {
+       "finding": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item]}}"
+      },
+      "timeout": 15
+     }
+    },
+    "identifier": "run_jq",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jq",
+     "vendor": "rapid7",
+     "version": "3.0.0"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
   }
+ ],
+ "graph": {
+  "nodes": [
+   {
+    "nodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922"
+   },
+   {
+    "nodeId": "9f313df7-7cb5-4b07-919c-12a1a26aadd7"
+   },
+   {
+    "nodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "c131c56f-f2c2-4751-a703-2d04168399d3"
+   },
+   {
+    "nodeId": "c8c26774-3167-4965-878a-1577bea71f32"
+   },
+   {
+    "nodeId": "f05cb246-262b-4317-a980-8b25671d9c10",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0",
+    "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681"
+   },
+   {
+    "nodeId": "214368fd-78b1-4844-878f-3eba01ae49c2",
+    "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681"
+   },
+   {
+    "nodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93",
+    "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6"
+   },
+   {
+    "nodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
+   },
+   {
+    "nodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8"
+   },
+   {
+    "nodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a"
+   },
+   {
+    "nodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca"
+   },
+   {
+    "nodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0"
+   },
+   {
+    "nodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7",
+    "parentNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0"
+   },
+   {
+    "nodeId": "e2533a1c-b6e6-406b-af53-1362d5bce5ff",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   }
+  ],
+  "edges": [
+   {
+    "edgeId": "48718903-b801-4416-8100-7a30bec74ddc",
+    "name": "Not Valid",
+    "fromNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
+    "toNodeId": "c8c26774-3167-4965-878a-1577bea71f32"
+   },
+   {
+    "edgeId": "54315a2a-6073-4c50-a6fc-ec8bf8b8f88b",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
+    "toNodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c"
+   },
+   {
+    "edgeId": "5fd455e5-7ad5-4b7c-b807-a068d24122fe",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
+    "toNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020"
+   },
+   {
+    "edgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
+    "name": "IssueFound",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
+    "toNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6"
+   },
+   {
+    "edgeId": "66985d02-0c99-4a88-83a9-a51b557fb82b",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
+    "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f"
+   },
+   {
+    "edgeId": "7929bd72-b467-42be-bda5-ff05340d4285",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "toNodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0"
+   },
+   {
+    "edgeId": "8c095db4-51cf-4da5-b8e2-68b6568853c0",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "f05cb246-262b-4317-a980-8b25671d9c10"
+   },
+   {
+    "edgeId": "91d13ac6-d9e0-45eb-8d19-f3307c2e6f81",
+    "fromNodeId": "c8c26774-3167-4965-878a-1577bea71f32"
+   },
+   {
+    "edgeId": "9947b0a4-2852-43cd-afba-e7656e95f4a1",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
+    "toNodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0"
+   },
+   {
+    "edgeId": "a5bfc77c-d22d-49e4-af23-7070cc66b4f8",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
+    "toNodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf"
+   },
+   {
+    "edgeId": "b2f25835-b81c-46d0-aa06-35f8df4c6eaf",
+    "name": "Valid",
+    "fromNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
+    "toNodeId": "c131c56f-f2c2-4751-a703-2d04168399d3"
+   },
+   {
+    "edgeId": "b69996c9-6e47-4047-8f37-2281273d13a0",
+    "fromNodeId": "9f313df7-7cb5-4b07-919c-12a1a26aadd7",
+    "toNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922"
+   },
+   {
+    "edgeId": "c5a0f2c2-77cd-4d18-b48d-ea11af022221",
+    "fromNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "toNodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8"
+   },
+   {
+    "edgeId": "d3df993a-901e-4ee0-8e55-5c4103a32f65",
+    "name": "IssueNotFound",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
+    "toNodeId": "e2533a1c-b6e6-406b-af53-1362d5bce5ff"
+   },
+   {
+    "edgeId": "f7994916-346f-48a7-a8b4-1e7be5ae475d",
+    "fromNodeId": "c131c56f-f2c2-4751-a703-2d04168399d3",
+    "toNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "edgeId": "8311045b-6ade-457c-a8d7-a16af0511008",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "7cdf4d37-c0ab-4287-898f-5453e29252f0",
+    "toNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681"
+   },
+   {
+    "edgeId": "8917a285-62fb-4fec-a654-3182863764d0",
+    "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+    "fromNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+    "toNodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0"
+   },
+   {
+    "edgeId": "3a36b0f7-be29-4e8b-92e7-89d63215b25b",
+    "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+    "fromNodeId": "bf8b0651-9990-4e0c-92ba-301043cfb3f0",
+    "toNodeId": "214368fd-78b1-4844-878f-3eba01ae49c2"
+   },
+   {
+    "edgeId": "c9c3115a-e600-4852-bb08-0c06b490570d",
+    "parentNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+    "fromNodeId": "214368fd-78b1-4844-878f-3eba01ae49c2"
+   },
+   {
+    "edgeId": "6159619c-ad65-4bc9-b425-563f49b098ea",
+    "name": "NoAddedHosts",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1"
+   },
+   {
+    "edgeId": "1b636166-c28e-4759-93a6-6a51e30cc8ca",
+    "name": "HasAddedHosts",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1",
+    "toNodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca"
+   },
+   {
+    "edgeId": "3fa0dbc0-23a4-4e50-8484-b9787c0a49d0",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "4c695c00-1097-4e5f-bd6a-2c4c1b51f6ca"
+   },
+   {
+    "edgeId": "84f94198-130a-47cc-befc-65d6dada18ea",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "9e4c4175-bee9-4f26-9920-9f6b462db681",
+    "toNodeId": "c5843fb4-b13d-4bf4-aad4-1d4b60de15e1"
+   },
+   {
+    "edgeId": "d84f5d7e-a0ee-4bd8-939d-a2c85d94ac7d",
+    "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
+    "fromNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
+    "toNodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93"
+   },
+   {
+    "edgeId": "5fe0ae67-5fe3-47c7-94d0-38cad2f0589f",
+    "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
+    "fromNodeId": "20ce8aa8-4c06-4bdb-81ee-3b1721272f93"
+   },
+   {
+    "edgeId": "898698a7-889a-4f94-a278-b60f6a48e608",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6",
+    "toNodeId": "b3e76992-72c0-4baa-b14e-5479d377f284"
+   },
+   {
+    "edgeId": "b82d5810-c693-4d99-bf83-e48d9efbbbc4",
+    "fromNodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
+   },
+   {
+    "edgeId": "dc9e197c-5f9f-42d4-bd81-50421d68d838",
+    "fromNodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8",
+    "toNodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a"
+   },
+   {
+    "edgeId": "2ff12584-0cb3-4f2a-8003-c5dff36b9043",
+    "fromNodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a",
+    "toNodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca"
+   },
+   {
+    "edgeId": "6201883b-7f29-4987-a16b-fe93610c9380",
+    "fromNodeId": "3d7303ed-7408-40db-9bf8-bf27a1f291ca",
+    "toNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0"
+   },
+   {
+    "edgeId": "aff8a67c-5775-4fdd-a3ac-ea2afa79be49",
+    "parentNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
+    "fromNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
+    "toNodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7"
+   },
+   {
+    "edgeId": "e99a35de-3f2c-4128-b13d-a2dc979c2a49",
+    "parentNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
+    "fromNodeId": "a92cb789-7ce8-4e9f-b957-ad182c3cd1d7"
+   },
+   {
+    "edgeId": "103f20e6-d835-4177-834f-9fa3364d9c8d",
+    "fromNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
+    "toNodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
+   },
+   {
+    "edgeId": "4b054ae2-61c2-444d-970d-89c0c11b288a",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
+    "fromNodeId": "e2533a1c-b6e6-406b-af53-1362d5bce5ff",
+    "toNodeId": "f05cb246-262b-4317-a980-8b25671d9c10"
+   }
+  ]
+ }
 }

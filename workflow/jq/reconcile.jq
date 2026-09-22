@@ -1,10 +1,11 @@
-# Reconcile — replaces the JQComparison step.
-# Input (json_in): { issues: <matched Jira tickets w/ .key & .description>,
-#                    fromASM: <this finding's affected_hosts, raw ::HOST:: string from the query> }
-# Keys on "host (ip)" ONLY; tag changes never trigger false remediation.
+# Reconcile — drop-in replacement for JQComparison's filter.
+# Input:  { issues: <matched tickets w/ .key & .description>, fromASM: <finding affected_hosts raw string> }
+# Output (SAME field names as original JQComparison, so no downstream rewiring):
+#   { added, added_count, added_description, removed,
+#     ticket_updates: [ {ticket_id, new_hosts, removed_hosts, new_description, removed_comment} ] }
+# Keys on "host (ip)" ONLY — tag changes never trigger false remediation.
 def totag($t): ($t|index("/")) as $i | if $i==null then {key:$t,value:""} else {key:$t[0:$i],value:$t[$i+1:]} end;
 def tagval($tags;$k): ($tags|map(select(.key==$k))|.[0].value|select(.!=null)) // "(untagged)";
-
 def query_map($fromASM):
   ($fromASM // "" | split(" ::HOST:: "))
   | reduce .[] as $t ([];
@@ -14,7 +15,6 @@ def query_map($fromASM):
                     tags:(($p[1]//"")|gsub("^\\s+|\\s+$";"")|if .=="" then [] else [.] end)} ]
       else (.[:-1]) + [ (.[-1]|.tags += [ ($t|gsub("^\\s+|\\s+$";"")) ]) ] end )
   | map({key:.key, tags:(.tags|map(select(length>0)|totag(.)))});
-
 def ticket_lines($desc):
   ($desc // "")
   | if test("\\[AFFECTED-HOSTS\\]")
@@ -33,19 +33,23 @@ def splice($desc; $newlines):
 | ([$q[].key]) as $qkeys
 | ([.issues[] | ticket_lines(.description) | .[] | line_key(.)]) as $all_ticket_keys
 | ($qkeys - $all_ticket_keys) as $added_keys
+| ($all_ticket_keys - $qkeys) as $removed_global
+| ([ $q[] | select(.key as $k | ($added_keys|index($k)))
+     | .key + " — Owner: " + tagval(.tags;"Owner")
+            + ", Repo: " + tagval(.tags;"Repo")
+            + ", Env: " + tagval(.tags;"Environment") ]) as $added_lines
 | {
     added: $added_keys,
     added_count: ($added_keys|length),
-    added_lines: [ $q[] | select(.key as $k | ($added_keys|index($k)))
-                   | .key + " — Owner: " + tagval(.tags;"Owner")
-                          + ", Repo: " + tagval(.tags;"Repo")
-                          + ", Env: " + tagval(.tags;"Environment") ],
+    added_description: ("[AFFECTED-HOSTS] " + ($added_lines|join("  ;  ")) + " [/AFFECTED-HOSTS]"),
+    removed: $removed_global,
     ticket_updates: [ .issues[] | . as $iss
         | (ticket_lines($iss.description)) as $lines
-        | ($lines | map(select(line_key(.) as $k | ($qkeys|index($k)))))       as $survivors
-        | ($lines | map(select(line_key(.) as $k | ($qkeys|index($k))|not)))   as $removed_lines
+        | ($lines | map(select(line_key(.) as $k | ($qkeys|index($k)))))     as $survivors
+        | ($lines | map(select(line_key(.) as $k | ($qkeys|index($k))|not))) as $removed_lines
         | select(($removed_lines|length) > 0)
         | { ticket_id: $iss.key,
+            new_hosts: ($survivors | map(line_key(.))),
             removed_hosts: ($removed_lines | map(line_key(.))),
             new_description: splice($iss.description; $survivors),
             removed_comment: ("Remediation update — the following host(s) no longer appear in the latest AWS Inspector scan and have been removed from this ticket:\n\n"
