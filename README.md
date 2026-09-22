@@ -4,6 +4,41 @@ An InsightConnect workflow that keeps Jira tickets in sync with AWS Inspector fi
 Rapid7 Surface Command — in both directions. No script steps: every transformation is done with the
 `jq` plugin or native InsightConnect steps, so it can be read and modified without writing code.
 
+## Enriched tickets (v2)
+
+The base workflow tracked 6 fields. The enriched build turns each ticket into an actionable,
+triage-ready vulnerability record by joining Surface Command's asset/EC2 inventory with **NIST NVD**,
+**FIRST EPSS**, and **CISA KEV** — all keyed off the finding's CVE id. Every ticket now carries:
+
+- **Risk / prioritization** — Inspector severity · CVSS v3 score+severity (NVD) · EPSS score+percentile ·
+  Exploit Available (Inspector) · **CISA KEV "actively exploited" flag + required action** (only when
+  applicable) · CWE weakness · attack vector
+- **Description** — the full NIST NVD prose description + an NVD reference link
+- **Per affected host** — hostname (ip) with its AWS resource tags: **Owner**, **Repo**, **Environment**
+- **Cloud context** — AWS account (name + numeric member-account id, multi-account aware) · OS · region ·
+  first observed · last seen · CVE published date
+- **Remediation** — Fix Available (Fixed-in-Version deferred; see `docs/WORKFLOW-CHANGES.md`)
+
+Artifacts for the enriched build live alongside this README:
+
+| Path | What it is |
+|---|---|
+| `queries/inspector-jira-enrichment.cypher` | The Surface Command saved query (paste into your saved query; the workflow references it by `query_id`). **Remove `LIMIT 5` for production.** |
+| `workflow/jq/build-ticket.jq` | Per-finding → `{summary, description}` (the enriched ticket body). Locally tested against live query output. |
+| `workflow/jq/reconcile.jq` | Replaces `JQComparison`. Host-set math keyed on `host (ip)` only, splice-preserve description rewrite, and the enriched removal comment (lists removed hosts + Owner). |
+| `docs/WORKFLOW-CHANGES.md` | Exact node-by-node steps to apply these in the InsightConnect builder, with a confidence/status table. |
+
+**Key data rules** (learned the hard way — see the query header and `docs/WORKFLOW-CHANGES.md`):
+- **No real newlines** in query output — they corrupt on the Jira ADF round-trip. The query uses the
+  sentinels ` ::HOST:: ` / ` ::TAGS:: ` / ` ::ARN:: `, parsed in jq; final layout newlines are authored
+  in jq, not carried through data.
+- **NVD/EPSS join on the clean CVE** — `split(a.title, " - ")[0]` (package findings look like
+  `CVE-… - <package>`).
+- **AWS account id is the LAST 12-digit group** of `acct.`AwsAccount:Arn`` (org-account ARN) — the first
+  group is the org management account.
+- **CWE lives in `d_weaknesses`**, not `weaknesses` (the latter is empty).
+- **Reconcile keys on `host (ip)` only** — a tag change never looks like a remediation.
+
 ## What it does
 
 For every finding returned by a Surface Command query, the workflow:
