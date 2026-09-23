@@ -19,6 +19,14 @@
     "type": "string",
     "default": "Done",
     "description": "The Jira status name used to exclude closed tickets from searches and as the closing transition target"
+   },
+   "query_id": {
+    "type": "string",
+    "default": "REPLACE_WITH_YOUR_SURFACE_COMMAND_QUERY_ID"
+   },
+   "label": {
+    "type": "string",
+    "default": "aws-inspector-auto"
    }
   },
   "definitions": {}
@@ -252,7 +260,7 @@
    "metadata": {
     "parameters": {
      "input": {
-      "query_id": "REPLACE_WITH_YOUR_SURFACE_COMMAND_QUERY_ID"
+      "query_id": "{{[$input].[query_id]}}"
      }
     },
     "identifier": "run_query",
@@ -335,7 +343,7 @@
       "type": "Task",
       "fields": {
        "labels": [
-        "aws-inspector-auto"
+        "{{[$input].[label]}}"
        ]
       },
       "project": "{{[$input].[ProjectIDKey]}}",
@@ -510,7 +518,7 @@
       "type": "Task",
       "fields": {
        "labels": [
-        "aws-inspector-auto"
+        "{{[$input].[label]}}"
        ]
       },
       "project": "{{[$input].[ProjectIDKey]}}",
