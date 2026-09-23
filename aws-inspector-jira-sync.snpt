@@ -643,7 +643,7 @@
       "flags": [
        "-c"
       ],
-      "filter": "(.findings | map(.title)) as $titles\n| {\n    stale_tickets: [ .tickets[]\n      | (.summary // \"\") as $s\n      | select( ($titles | any(. as $t | $s | contains($t))) | not )\n    ]\n  }",
+      "filter": "(.findings | map(.title)) as $titles\n| {\n    stale_tickets: [ .tickets[]\n      | . as $t\n      | ($t.summary // \"\") as $s\n      | ($t.description // \"\") as $d\n      | ($titles | any(. as $x | $s | contains($x))) as $title_present\n      | (if ($d | test(\"\\\\[AFFECTED-HOSTS\\\\]\"))\n         then ( ($d | split(\"[AFFECTED-HOSTS]\")[1] | split(\"[/AFFECTED-HOSTS]\")[0])\n                | gsub(\"\\\\\\\\n\";\" \") | split(\"  ;  \") | map(gsub(\"^\\\\s+|\\\\s+$\";\"\")) | map(select(length>0)) | length )\n         else -1 end) as $hostcount\n      | if ($title_present | not)\n          then ($t + {close_reason: \"Closed automatically \u2014 this finding no longer appears in the latest Surface Command scan.\"})\n        elif ($hostcount == 0)\n          then ($t + {close_reason: \"Closed automatically \u2014 all affected hosts for this finding have been remediated.\"})\n        else empty end\n    ]\n  }\n",
       "json_in": {
        "tickets": "{{[49e0d723-1a47-4e1e-8b04-1020eee1eee8].[issues]}}",
        "findings": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
@@ -730,7 +730,7 @@
      "input": {
       "id": "{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[$item].[key]}}",
       "transition": "{{[$input].[CompletedIssueStatus]}}",
-      "comment": "Closed automatically - this finding no longer appears in the latest Surface Command scan."
+      "comment": "{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[$item].[close_reason]}}"
      }
     },
     "identifier": "transition_issue",
