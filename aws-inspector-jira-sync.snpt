@@ -65,15 +65,6 @@
         "expression": null
        },
        "outputType": "array"
-      },
-      {
-       "name": "affected_hosts_query",
-       "input": {
-        "value": "{{[55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c].[content]}}",
-        "valueType": null,
-        "expression": null
-       },
-       "outputType": "array"
       }
      ],
      "repeatVariable": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
@@ -135,20 +126,6 @@
    }
   },
   {
-   "nodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
-   "name": "EachTicket",
-   "type": "artifact",
-   "metadata": {
-    "parameters": {
-     "type": "markdown",
-     "input": {
-      "content": "# Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\nFinding Title: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\nFinding Severity: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[severity]}}\nType: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[type]}}\nFix Available: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[fix_available]}}\nExploit Available: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[exploit_available]}}\n---\nAffected hosts: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}"
-     }
-    },
-    "isDisabled": false
-   }
-  },
-  {
    "nodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
    "name": "JQComparison",
    "description": "",
@@ -177,20 +154,6 @@
     },
     "isCloud": true,
     "connectionType": "ORCHESTRATOR"
-   }
-  },
-  {
-   "nodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
-   "name": "AffectedHostsList",
-   "type": "artifact",
-   "metadata": {
-    "parameters": {
-     "type": "markdown",
-     "input": {
-      "content": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[affected_hosts]}}"
-     }
-    },
-    "isDisabled": false
    }
   },
   {
@@ -302,34 +265,6 @@
     },
     "isCloud": true,
     "connectionType": "ORCHESTRATOR"
-   }
-  },
-  {
-   "nodeId": "c131c56f-f2c2-4751-a703-2d04168399d3",
-   "name": "OutputSample",
-   "type": "artifact",
-   "metadata": {
-    "parameters": {
-     "type": "markdown",
-     "input": {
-      "content": "{{[9f313df7-7cb5-4b07-919c-12a1a26aadd7].[items]}}"
-     }
-    },
-    "isDisabled": false
-   }
-  },
-  {
-   "nodeId": "c8c26774-3167-4965-878a-1577bea71f32",
-   "name": "Artifact - 1",
-   "type": "artifact",
-   "metadata": {
-    "parameters": {
-     "type": "markdown",
-     "input": {
-      "content": "The result is empty"
-     }
-    },
-    "isDisabled": false
    }
   },
   {
@@ -601,20 +536,6 @@
    }
   },
   {
-   "nodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816",
-   "name": "FullRunDebugSummary",
-   "type": "artifact",
-   "metadata": {
-    "parameters": {
-     "type": "markdown",
-     "input": {
-      "content": "# Full Run Debug Summary\n\n## Findings\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[findings]}}\n```\n\n## FindIssue Results (per finding)\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[find_issue_results]}}\n```\n\n## Affected Hosts From Query (per finding)\n```\n{{[0a0de8aa-110d-4a34-99e4-467504206593].[affected_hosts_query]}}\n```\n\n---\nNote: extracted_existing_hosts, jq_comparisons, parsed_added_removed, matched_issues_enriched, created_added_tickets, and ticket_update_details are NOT included here - ICON errors when a Loop Output references a step that didn't run on a given iteration, and those steps only run on some branches. Grab those individually per-finding when needed.\n\n\n---\n\n## Reverse Sync: All Open Tickets Checked\n```\n{{[49e0d723-1a47-4e1e-8b04-1020eee1eee8].[issues]}}\n```\n\n## Stale Tickets Closed This Run\n```\n{{[79acb971-1485-4c9e-aae9-5653d537a6c0].[stale_ticket_closures]}}\n```\n"
-     }
-    },
-    "isDisabled": false
-   }
-  },
-  {
    "nodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8",
    "name": "FindAllOpenTickets",
    "description": "",
@@ -795,15 +716,7 @@
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    },
    {
-    "nodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
-    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-   },
-   {
     "nodeId": "29b8b841-8aa8-401c-a6be-14a9d2a61caf",
-    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-   },
-   {
-    "nodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    },
    {
@@ -819,12 +732,6 @@
    {
     "nodeId": "b3e76992-72c0-4baa-b14e-5479d377f284",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
-   },
-   {
-    "nodeId": "c131c56f-f2c2-4751-a703-2d04168399d3"
-   },
-   {
-    "nodeId": "c8c26774-3167-4965-878a-1577bea71f32"
    },
    {
     "nodeId": "f05cb246-262b-4317-a980-8b25671d9c10",
@@ -863,9 +770,6 @@
     "parentNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6"
    },
    {
-    "nodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
-   },
-   {
     "nodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8"
    },
    {
@@ -891,19 +795,13 @@
     "edgeId": "48718903-b801-4416-8100-7a30bec74ddc",
     "name": "Not Valid",
     "fromNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
-    "toNodeId": "c8c26774-3167-4965-878a-1577bea71f32"
+    "toNodeId": null
    },
    {
     "edgeId": "54315a2a-6073-4c50-a6fc-ec8bf8b8f88b",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
     "fromNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
-    "toNodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c"
-   },
-   {
-    "edgeId": "5fd455e5-7ad5-4b7c-b807-a068d24122fe",
-    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-    "fromNodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0",
-    "toNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020"
+    "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f"
    },
    {
     "edgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
@@ -913,25 +811,15 @@
     "toNodeId": "2d52777d-4cc8-4468-af9d-e49e97ff32e6"
    },
    {
-    "edgeId": "66985d02-0c99-4a88-83a9-a51b557fb82b",
-    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-    "fromNodeId": "55f0c5db-b76d-486e-b0ce-fd61dbcb5a6c",
-    "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f"
-   },
-   {
     "edgeId": "7929bd72-b467-42be-bda5-ff05340d4285",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
     "fromNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
-    "toNodeId": "1f7f64f0-5ca2-4c27-b4e3-76dd62e9eea0"
+    "toNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020"
    },
    {
     "edgeId": "8c095db4-51cf-4da5-b8e2-68b6568853c0",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
     "fromNodeId": "f05cb246-262b-4317-a980-8b25671d9c10"
-   },
-   {
-    "edgeId": "91d13ac6-d9e0-45eb-8d19-f3307c2e6f81",
-    "fromNodeId": "c8c26774-3167-4965-878a-1577bea71f32"
    },
    {
     "edgeId": "9947b0a4-2852-43cd-afba-e7656e95f4a1",
@@ -949,7 +837,7 @@
     "edgeId": "b2f25835-b81c-46d0-aa06-35f8df4c6eaf",
     "name": "Valid",
     "fromNodeId": "6d0bcf61-c483-4619-a55f-10cbc04c1922",
-    "toNodeId": "c131c56f-f2c2-4751-a703-2d04168399d3"
+    "toNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    },
    {
     "edgeId": "b69996c9-6e47-4047-8f37-2281273d13a0",
@@ -967,11 +855,6 @@
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
     "fromNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
     "toNodeId": "155cc0b9-2cf1-49ba-94e4-a68f49b0041f"
-   },
-   {
-    "edgeId": "f7994916-346f-48a7-a8b4-1e7be5ae475d",
-    "fromNodeId": "c131c56f-f2c2-4751-a703-2d04168399d3",
-    "toNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    },
    {
     "edgeId": "8311045b-6ade-457c-a8d7-a16af0511008",
@@ -1038,10 +921,6 @@
     "toNodeId": "b3e76992-72c0-4baa-b14e-5479d377f284"
    },
    {
-    "edgeId": "b82d5810-c693-4d99-bf83-e48d9efbbbc4",
-    "fromNodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
-   },
-   {
     "edgeId": "dc9e197c-5f9f-42d4-bd81-50421d68d838",
     "fromNodeId": "49e0d723-1a47-4e1e-8b04-1020eee1eee8",
     "toNodeId": "8f5bd6d7-7888-4d83-8c91-cc49df6d537a"
@@ -1070,7 +949,7 @@
    {
     "edgeId": "103f20e6-d835-4177-834f-9fa3364d9c8d",
     "fromNodeId": "79acb971-1485-4c9e-aae9-5653d537a6c0",
-    "toNodeId": "4674ebfb-3f16-4cf9-ae00-043180f4a816"
+    "toNodeId": null
    },
    {
     "edgeId": "c0d929c9-5cee-41db-a772-73e6c4764d0b",
