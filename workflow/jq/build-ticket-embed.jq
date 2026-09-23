@@ -1,62 +1,40 @@
-# BuildTicketBody — runs once per finding in the EachFinding loop.
-# Input (json_in): the single finding object from ExposureCommandQuery items[].
-# Output (json_out): { "summary": <string>, "description": <string> }
 def clean($s): ($s // "") | gsub("[\r\n]+"; " ") | gsub("  +"; " ") | gsub("^\\s+|\\s+$"; "");
 def dateonly($s): ($s // "") | .[0:10];
 def member($arn): ([$arn // "" | scan("[0-9]{12}")] | last) // "unknown";
-def totag($t): ($t|index("/")) as $i
-  | if $i==null then {key:$t,value:""} else {key:$t[0:$i], value:$t[$i+1:]} end;
-def tagval($tags;$k): ($tags | map(select(.key==$k)) | .[0].value | select(.!=null)) // "(untagged)";
-def cwe_clean($s): ($s // "") | [splits(", *")] | map(select(test("noinfo")|not)) | join(", ")
-  | if .=="" then "n/a" else . end;
+def totag($t): ($t|index("/")) as $i | if $i==null then {key:$t,value:""} else {key:$t[0:$i],value:$t[$i+1:]} end;
+def tagval($tags;$k): ($tags|map(select(.key==$k))|.[0].value|select(.!=null)) // "(untagged)";
+def cwe_clean($s): ($s // "") | [splits(", *")] | map(select(test("noinfo")|not)) | join(", ") | if .=="" then "n/a" else . end;
 def clean_cve($t): ($t // "") | split(" - ")[0];
-
-# split raw affected_hosts (::HOST:: separated) into [{hostip, tags:[{key,value}]}].
-# " ::TAGS:: " marks each host boundary; every other token is one tag (also ::HOST::-separated).
-def parse_hosts($s):
-  ($s // "" | split(" ::HOST:: "))
+def ordinal($n): ($n|tostring) + (if ($n%100>=11 and $n%100<=13) then "th" elif $n%10==1 then "st" elif $n%10==2 then "nd" elif $n%10==3 then "rd" else "th" end);
+def query_map($fromASM):
+  ($fromASM // "" | split(" ::HOST:: "))
   | reduce .[] as $t ([];
-      if ($t | test("::TAGS::"))
-      then ($t | split(" ::TAGS::")) as $p
-           | . + [ { hostip: ($p[0]|gsub("^\\s+|\\s+$";"")),
-                     tags: (($p[1]//"")|gsub("^\\s+|\\s+$";"")|if .=="" then [] else [.] end) } ]
-      else (.[:-1]) + [ (.[-1] | .tags += [ ($t | gsub("^\\s+|\\s+$";"")) ]) ] end )
-  | map( {hostip: .hostip, tags: (.tags | map(select(length>0) | totag(.)))} );
-
-.finding
-| (clean_cve(.title)) as $cve
-| (parse_hosts(.affected_hosts)) as $hosts
-| ([ $hosts[] | .hostip + " — Owner: " + tagval(.tags;"Owner")
-                       + ", Repo: "  + tagval(.tags;"Repo")
-                       + ", Env: "   + tagval(.tags;"Environment") ] | join("  ;  ")) as $host_block
-| ((.accounts_raw // "") | split(" | ")
-    | map( (split(" ::ARN:: ")) as $p | $p[0] + " (" + member($p[1]) + ")" ) | join(", ")) as $accts
-| (if (.kev_exploited // "") == "true" then true else false end) as $kev
-| (((.epss // "0")|tonumber)*100|floor) as $epss_pct
-| (((.epss_percentile // "0")|tonumber)*100|floor) as $epss_rank
-| {
-    summary: ((if $kev then "[KEV] " else "" end)
-              + (.severity // "") + " · CVSS " + (.cvss3_score // "n/a")
-              + " · Remediation needed for: " + (.title // "")),
-    description: (
-        (if $kev then "[KEV — ACTIVELY EXPLOITED IN THE WILD] " + clean(.kev_action) + "\n\n" else "" end)
-      + "-- RISK --\n"
-      + "Severity: " + (.severity // "n/a")
-        + "  |  CVSS v3: " + (.cvss3_score // "n/a") + " (" + (.cvss3_severity // "n/a") + ")"
-        + "  |  EPSS: " + ($epss_pct|tostring) + "% (" + ($epss_rank|tostring) + "th pct)\n"
-      + "Exploit Available: " + (.exploit_available // "n/a")
-        + "  |  Fix Available: " + (.fix_available // "n/a") + "\n"
-      + "Weakness: " + cwe_clean(.cwe) + "  |  Attack Vector: " + (.attack_vector // "n/a") + "\n\n"
-      + "-- DESCRIPTION --\n"
-      + clean(.cve_description) + "\n"
-      + "Reference: https://nvd.nist.gov/vuln/detail/" + $cve + "\n\n"
-      + "-- ENVIRONMENT --\n"
-      + "AWS Account(s): " + $accts + "  |  OS: " + (.os // "n/a") + "  |  Region: " + (.regions // "n/a") + "\n"
-      + "First Observed: " + dateonly(.first_observed)
-        + "  |  Last Seen: " + dateonly(.last_seen)
-        + "  |  CVE Published: " + dateonly(.cve_published) + "\n\n"
-      + "-- AFFECTED HOSTS --\n"
-      + "[AFFECTED-HOSTS] " + $host_block + " [/AFFECTED-HOSTS]"
-    )
-  }
-| .description
+      if ($t|test("::TAGS::"))
+      then ($t|split(" ::TAGS::")) as $p
+           | . + [ {key:($p[0]|gsub("^\\s+|\\s+$";"")), tags:(($p[1]//"")|gsub("^\\s+|\\s+$";"")|if .=="" then [] else [.] end)} ]
+      else (.[:-1]) + [ (.[-1]|.tags += [ ($t|gsub("^\\s+|\\s+$";"")) ]) ] end )
+  | map({key:.key, tags:(.tags|map(select(length>0)|totag(.)))});
+def qline($h): $h.key + " — Owner: " + tagval($h.tags;"Owner") + ", Repo: " + tagval($h.tags;"Repo") + ", Env: " + tagval($h.tags;"Environment");
+def render_desc($f; $lines):
+  (clean_cve($f.title)) as $cve
+  | ((($f.epss // "0")|tonumber)*100|floor) as $ep
+  | ((($f.epss_percentile // "0")|tonumber)*100|floor) as $er
+  | (($f.accounts_raw // "") | split(" | ") | map((split(" ::ARN:: ")) as $p | $p[0] + " (" + member($p[1]) + ")") | join(", ")) as $accts
+  | (if ($f.kev_exploited // "")=="true" then "[KEV — ACTIVELY EXPLOITED IN THE WILD] " + clean($f.kev_action) + "\n\n" else "" end)
+    + "-- RISK --\n"
+    + "Severity: " + ($f.severity // "n/a") + "  |  CVSS v3: " + ($f.cvss3_score // "n/a") + " (" + ($f.cvss3_severity // "n/a") + ")  |  EPSS: " + ($ep|tostring) + "% (" + ordinal($er) + " pct)\n"
+    + "Exploit Available: " + ($f.exploit_available // "n/a") + "  |  Fix Available: " + ($f.fix_available // "n/a") + "\n"
+    + "Weakness: " + cwe_clean($f.cwe) + "  |  Attack Vector: " + ($f.attack_vector // "n/a") + "\n\n"
+    + "-- DESCRIPTION --\n" + clean($f.cve_description) + "\nReference: https://nvd.nist.gov/vuln/detail/" + $cve + "\n\n"
+    + "-- ENVIRONMENT --\n"
+    + "AWS Account(s): " + $accts + "  |  OS: " + ($f.os // "n/a") + "  |  Region: " + ($f.regions // "n/a") + "\n"
+    + "First Observed: " + dateonly($f.first_observed) + "  |  Last Seen: " + dateonly($f.last_seen) + "  |  CVE Published: " + dateonly($f.cve_published) + "\n\n"
+    + "-- AFFECTED HOSTS --\n[AFFECTED-HOSTS] " + ($lines | join("  ;  ")) + " [/AFFECTED-HOSTS]";
+def ticket_lines($desc):
+  ($desc // "")
+  | if test("\\[AFFECTED-HOSTS\\]")
+    then (split("[AFFECTED-HOSTS]")[1] | split("[/AFFECTED-HOSTS]")[0]) | gsub("\\\\n";" ") | split("  ;  ") | map(gsub("^\\s+|\\s+$";"")) | map(select(length>0))
+    else [] end;
+def lkey($line): $line|split(" — ")[0]|gsub("^\\s+|\\s+$";"");
+def lowner($line): ($line|capture("Owner: (?<o>[^,]+)").o) // "unknown";
+.finding as $f | (query_map($f.affected_hosts)) as $q | render_desc($f; [ $q[] | qline(.) ])
