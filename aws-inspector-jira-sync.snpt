@@ -20,13 +20,17 @@
     "default": "Done",
     "description": "The Jira status name used to exclude closed tickets from searches and as the closing transition target"
    },
-   "query_id": {
-    "type": "string",
-    "default": "REPLACE_WITH_YOUR_SURFACE_COMMAND_QUERY_ID"
-   },
    "label": {
     "type": "string",
     "default": "aws-inspector-auto"
+   },
+   "severity": {
+    "type": "string",
+    "default": "Critical"
+   },
+   "resultLimit": {
+    "type": "string",
+    "default": "50"
    }
   },
   "definitions": {}
@@ -164,7 +168,7 @@
    "metadata": {
     "parameters": {
      "input": {
-      "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}} AND summary ~ \"\\\"Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\\\"\"",
+      "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}} AND summary ~ \"\\\"Remediation needed for: {{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}\\\"\" AND labels = \"{{[$input].[label]}}\"",
       "max": 10,
       "get_attachments": false
      }
@@ -223,10 +227,10 @@
    "metadata": {
     "parameters": {
      "input": {
-      "query_id": "{{[$input].[query_id]}}"
+      "cypher": "MATCH (a:AwsInspectorExposure)<--(a1:Asset)\nWHERE a.severity = \"{{[$input].[severity]}}\"\nOPTIONAL MATCH (a1)--(e:AwsEc2Instance)\nOPTIONAL MATCH (a1)--(acct:AwsAccount)\nOPTIONAL MATCH (n:NistCve2)                 WHERE n.id = split(a.title, \" - \")[0]\nOPTIONAL MATCH (ep:FirstEpssVulnerability)  WHERE ep.`Vulnerability:id` = split(a.title, \" - \")[0]\nWITH a, n, ep,\n     collect(DISTINCT\n        a1.hostnames[0] + \" (\" + a1.ips[0] + \")\"\n        + \" ::TAGS:: \" + coalesce(e.flat_tags, \"\")\n     ) AS host_lines,\n     collect(DISTINCT coalesce(a1.cloud_account, \"unknown\") + \" ::ARN:: \" + coalesce(acct.`AwsAccount:Arn`, \"\")) AS accounts,\n     collect(DISTINCT coalesce(a1.os_family, \"unknown\")) AS os_list,\n     collect(DISTINCT coalesce(a1.location,  \"unknown\")) AS region_list,\n     min(a1.first_seen) AS first_observed,\n     max(a1.last_seen)  AS last_seen\nRETURN\n     a.title              AS title,\n     a.severity           AS severity,\n     a.type               AS type,\n     a.fixAvailable       AS fix_available,\n     a.exploitAvailable   AS exploit_available,\n     n.description        AS cve_description,\n     n.cvss_3_basescore   AS cvss3_score,\n     n.cvss_3_basesev     AS cvss3_severity,\n     n.d_weaknesses       AS cwe,\n     n.attack_vector      AS attack_vector,\n     n.is_exploited       AS kev_exploited,\n     n.cisaRequiredAction AS kev_action,\n     n.published          AS cve_published,\n     ep.`FirstEpssVulnerability:epss`       AS epss,\n     ep.`FirstEpssVulnerability:percentile` AS epss_percentile,\n     join(host_lines, \" ::HOST:: \") AS affected_hosts,\n     join(accounts, \" | \")          AS accounts_raw,\n     join(os_list, \", \")            AS os,\n     join(region_list, \", \")        AS regions,\n     first_observed       AS first_observed,\n     last_seen            AS last_seen\nORDER BY first_observed ASC\nLIMIT {{[$input].[resultLimit]}}"
      }
     },
-    "identifier": "run_query",
+    "identifier": "run_adhoc_query",
     "continueOnFailure": false,
     "isDisabled": false,
     "plugin": {
@@ -543,7 +547,7 @@
    "metadata": {
     "parameters": {
      "input": {
-      "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}}",
+      "jql": "project = {{[$input].[ProjectID]}} AND status != {{[$input].[CompletedIssueStatus]}} AND labels = \"{{[$input].[label]}}\"",
       "max": 100,
       "get_attachments": false
      }
