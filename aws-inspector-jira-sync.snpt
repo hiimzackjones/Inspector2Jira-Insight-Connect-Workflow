@@ -114,7 +114,7 @@
        "expression": {
         "op": "=",
         "left": {
-         "name": "b7c1e9a2-1d34-4f55-9a6e-ec4c7a4c6101.json_out",
+         "name": "c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212.output.issues",
          "type": "variable"
         },
         "type": "binary",
@@ -123,7 +123,7 @@
          "elements": []
         }
        },
-       "expressionText": "{{[b7c1e9a2-1d34-4f55-9a6e-ec4c7a4c6101].[json_out]}} = []"
+       "expressionText": "{{[c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212].[output].[issues]}} = []"
       }
      ]
     }
@@ -499,7 +499,7 @@
        "outputType": "array"
       }
      ],
-     "repeatVariable": "{{[b7c1e9a2-1d34-4f55-9a6e-ec4c7a4c6101].[json_out]}}"
+     "repeatVariable": "{{[c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212].[output].[issues]}}"
     },
     "customOutputSchema": {
      "type": "object",
@@ -720,7 +720,7 @@
       "flags": [
        "-c"
       ],
-      "filter": ".title as $t\n| [ .issues[]\n    | select(\n        ( (.summary // \"\")\n          | sub(\"^.*Remediation needed for: \"; \"\")\n          | sub(\" \\\\(new hosts\\\\)$\"; \"\")\n        ) == $t\n      )\n  ]\n",
+      "filter": ".title as $t\n| { issues:\n    [ .issues[]\n      | select(\n          ( (.summary // \"\")\n            | sub(\"^.*Remediation needed for: \"; \"\")\n            | sub(\" \\\\(new hosts\\\\)$\"; \"\")\n          ) == $t\n        )\n    ]\n  }\n",
       "json_in": {
        "issues": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}",
        "title": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}"
@@ -735,6 +735,29 @@
      "name": "jq",
      "vendor": "rapid7",
      "version": "3.0.0"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
+  },
+  {
+   "nodeId": "c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212",
+   "name": "FilterTypeConvert",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "input": "{{[b7c1e9a2-1d34-4f55-9a6e-ec4c7a4c6101].[json_out]}}"
+     }
+    },
+    "identifier": "string_to_object",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "type_converter",
+     "vendor": "rapid7",
+     "version": "1.8.9"
     },
     "isCloud": true,
     "connectionType": "ORCHESTRATOR"
@@ -826,6 +849,10 @@
    },
    {
     "nodeId": "b7c1e9a2-1d34-4f55-9a6e-ec4c7a4c6101",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    }
   ],
@@ -999,6 +1026,12 @@
    {
     "edgeId": "e1f2a3b4-c5d6-4e7f-8a90-ec4c7a4c6ed0",
     "fromNodeId": "b7c1e9a2-1d34-4f55-9a6e-ec4c7a4c6101",
+    "toNodeId": "c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "edgeId": "f2a3b4c5-d6e7-4f80-9b01-fd5d8b5d7ed1",
+    "fromNodeId": "c8d2f0b3-2e45-4a66-ab7f-fd5d8b5d7212",
     "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    }
