@@ -114,7 +114,7 @@
        "expression": {
         "op": "=",
         "left": {
-         "name": "602e4024-aaef-4b66-81c3-bf1b2b50a020.issues",
+         "name": "b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01.json_out",
          "type": "variable"
         },
         "type": "binary",
@@ -123,7 +123,7 @@
          "elements": []
         }
        },
-       "expressionText": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}} = []"
+       "expressionText": "{{[b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01].[json_out]}} = []"
       }
      ]
     }
@@ -499,7 +499,7 @@
        "outputType": "array"
       }
      ],
-     "repeatVariable": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}"
+     "repeatVariable": "{{[b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01].[json_out]}}"
     },
     "customOutputSchema": {
      "type": "object",
@@ -708,6 +708,37 @@
     "isCloud": true,
     "connectionType": "ORCHESTRATOR"
    }
+  },
+  {
+   "nodeId": "b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01",
+   "name": "FilterExactMatch",
+   "description": "",
+   "type": "action",
+   "metadata": {
+    "parameters": {
+     "input": {
+      "flags": [
+       "-c"
+      ],
+      "filter": ".title as $t\n| [ .issues[]\n    | select(\n        ( (.summary // \"\")\n          | sub(\"^.*Remediation needed for: \"; \"\")\n          | sub(\" \\\\(new hosts\\\\)$\"; \"\")\n        ) == $t\n      )\n  ]\n",
+      "json_in": {
+       "issues": "{{[602e4024-aaef-4b66-81c3-bf1b2b50a020].[issues]}}",
+       "title": "{{[0a0de8aa-110d-4a34-99e4-467504206593].[$item].[title]}}"
+      },
+      "timeout": 15
+     }
+    },
+    "identifier": "run_jq",
+    "continueOnFailure": false,
+    "isDisabled": false,
+    "plugin": {
+     "name": "jq",
+     "vendor": "rapid7",
+     "version": "3.0.0"
+    },
+    "isCloud": true,
+    "connectionType": "ORCHESTRATOR"
+   }
   }
  ],
  "graph": {
@@ -792,6 +823,10 @@
    {
     "nodeId": "155cc0b9-2cf1-49ba-94e4-a68f49b0041f",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
+   },
+   {
+    "nodeId": "b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01",
+    "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593"
    }
   ],
   "edges": [
@@ -805,7 +840,7 @@
     "edgeId": "54315a2a-6073-4c50-a6fc-ec8bf8b8f88b",
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
     "fromNodeId": "602e4024-aaef-4b66-81c3-bf1b2b50a020",
-    "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f"
+    "toNodeId": "b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01"
    },
    {
     "edgeId": "6538b31f-e1cf-4790-8af0-45f28b725881",
@@ -960,6 +995,11 @@
     "parentNodeId": "0a0de8aa-110d-4a34-99e4-467504206593",
     "fromNodeId": "155cc0b9-2cf1-49ba-94e4-a68f49b0041f",
     "toNodeId": "f05cb246-262b-4317-a980-8b25671d9c10"
+   },
+   {
+    "edgeId": "e1f2a3b4-c5d6-4e7f-8a90-ex4ctm4tchED",
+    "fromNodeId": "b7c1e9a2-1d34-4f55-9a6e-ex4ctm4tch01",
+    "toNodeId": "1a44ecef-7d95-47a3-af6e-cb96e3fab83f"
    }
   ]
  }
